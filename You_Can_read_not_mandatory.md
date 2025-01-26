@@ -1,0 +1,3 @@
+I created this to get an a little bit of understanding of Computer Vision. I used YOLOv11 in models. I tried many datasets to make these models work. It was a bit tricky than I thought but I managed to create some well datasets in the end for the models. 
+To create these datasets, I coded some python and created annotations simultaneously. You can find those files in dataset creation folders.
+I haven't finished the code yet, right now I'm trying to create good FEN information about the boards that the models see to send to stockfish. The locations of pieces is no problem but I'm having some troubles deciding "the availibity of castles" part. 
