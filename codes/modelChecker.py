@@ -129,7 +129,3 @@ cv2.destroyAllWindows()
 del piece_model
 del board_model
 
-
-
-
-
