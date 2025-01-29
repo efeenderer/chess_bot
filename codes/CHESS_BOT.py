@@ -10,6 +10,11 @@ from queue import Queue
 import threading
 
 
+try:
+        sct = mss.mss()
+except Exception as e:
+    print(f"There was an error creating sct. Error: {e}")
+
 def getFilePath():
     file_path = os.path.dirname(__file__)
 
@@ -38,14 +43,36 @@ piece_map = []
 # .................
 # ......,K,Q,0,0,R]]
 
-def TakeScreenshot(sct):
+def Screenshot():
     return sct.shot()
 
 def DetectBoard():
-    return None
+    try:
+        frame = np.array(Screenshot())
+        frame = cv.cvtColor(frame,cv.COLOR_RGB2BGR)
+        N = 1200
+        frame = cv.resize(frame,(N,int(N/1.777)))   # N x N/1.777 --- 16:9
+                        
+        results = board_model(frame)
 
-def DetectPieces():
-    pass
+        boxes = results[0].boxes
+        
+        if len(boxes) > 0:
+            box = boxes[0].xyxy[0]
+            x1,y1,x2,y2 = map(int,box)
+            board = frame[y1:y2,x1:x2]
+            return board
+        return None
+    except Exception as e:
+        print(f"Error in detect_board: {e}")
+        return None
+
+def DetectPieces(board):
+    if board == None:
+        return
+    board = cv.cvtColor(board,cv.COLOR_RGB2BGR)
+
+    
 
 def ProcessImage():
     process_time = 1 #For optimization purposes. If the elapsed time does not exceed this value, the program will remain constant. 
@@ -60,23 +87,20 @@ def ProcessImage():
                 print(f"Total elapsed time: {current_time - base_time:.2f}s")
                 
             else:
-                print(f"Total elapsed time: {current_time - base_time:.2f}s")
                 last_time = current_time
-
+                board = DetectBoard()
+                DetectPieces(board)
 
         except Exception as e:
             print(f"There was an error taking screenshot. Error: {e}")
         t.sleep(0.2)
 
 
-def FindFEN(piece_map:list, ):
+def FindFEN():
     pass
 
 def MainLoop():
-    try:
-        sct = mss.mss()
-    except Exception as e:
-        print(f"There was an error creating sct. Error: {e}")
+    
     
     while True: #main loop
         try:
@@ -84,6 +108,7 @@ def MainLoop():
             t.sleep(1)
         except Exception as e:
             print(f"An Error occured, Error:{e}")
+
 
 if __name__ == "__main__":
     board_model = YOLO(os.path.join(__path__,'models\\board_model.pt'))
