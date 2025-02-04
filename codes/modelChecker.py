@@ -27,8 +27,8 @@ __path__ = getFilePath()
 
 if __name__ == "__main__":
     if torch.cuda.is_available():
-        board_model = YOLO(r"E:\Python_Projeler\runs\detect\train16\weights\best.pt").to('cuda')
-        piece_model = YOLO(r"E:\Python_Projeler\runs\detect\train15\weights\best.pt").to('cuda')
+        board_model = YOLO(r"E:\Python_Projeler\ComputerVisionProjects\chess_bot\codes\models\board_model.pt").to('cuda')
+        piece_model = YOLO(r"E:\Python_Projeler\ComputerVisionProjects\chess_bot\codes\models\piece_model.pt").to('cuda')
     else:
         board_model = YOLO(r"E:\Python_Projeler\runs\detect\train16\weights\best.pt")
         piece_model = YOLO(r"E:\Python_Projeler\runs\detect\train15\weights\best.pt")
