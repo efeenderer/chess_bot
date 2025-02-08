@@ -9,13 +9,9 @@ import time as t
 from screeninfo import get_monitors
 
 
+
 monitor = {"top": 0, "left": 0, "width": int(get_monitors()[0].width), "height": int(get_monitors()[0].height)}
 sct = mss.mss()
-
-"""try:
-        sct = mss.mss()
-except Exception as e:
-    print(f"There was an error creating sct. Error: {e}")"""
 
 def getFilePath():
     file_path = os.path.dirname(__file__)
@@ -25,9 +21,9 @@ def UpperPath(path):
     upper_path = os.path.dirname(path)
 
     return upper_path[0].upper() + upper_path[1:]
-
 __path__ = getFilePath()
 
+stockfish = Stockfish(path=__path__+r"\stockfish\stockfish-windows-x86-64-avx2.exe")
 
 piece_by_id = {0:'p',6:'P',
                1:'n',7:'N',
@@ -45,26 +41,7 @@ piece_map = [[0,0,0,0,0,0,0,0],
              [0,0,0,0,0,0,0,0],
              [0,0,0,0,0,0,0,0]]
 
-
 coordinates = [0.0625, .1875, .3125, .4375, .5625, .6875, .8125, .9375]
-             
-#Piece Map will look like this:
-#[[p,p,p,p,p,0,0,0],
-# [b,B,0,0,0,0,0,0],
-# .................
-# .................
-# .................
-# ......,K,Q,0,0,R]] Obiviously, they're all gonna be chars
-
-
-
-
-"""
-def Screenshot():
-    with mss.mss() as sct:          #I kept getting this error: AttributeError: '_thread._local' object has no attribute 'srcdc'. Don't know why but getting screenshots this way solved that problem. 
-        return sct.grab(monitor)    #I'll work on that later to see what was the problem
-    """
-
 
 def DetectBoard():
     try:
@@ -89,7 +66,6 @@ def DetectBoard():
 
     return None
 
-
 def ClosestCoordinate(center):
 
     lowest_difference = abs(coordinates[0] - center)
@@ -103,9 +79,7 @@ def ClosestCoordinate(center):
             lowest_difference = current_difference
 
     return coordinates[i]
-            
-
-
+  
 def DetectPieces(board):
     try:
         if board is None:
@@ -136,8 +110,7 @@ def DetectPieces(board):
 
     except Exception as E:
         print(f"Error in detecting pieces.     Error: {E}")
-        
-
+    
 def ShowBoard():
     for row in piece_map:
         for piece in row:
@@ -147,8 +120,7 @@ def ShowBoard():
             print(f"{piece} ",end="")
         print()
 
-
-def Tests(): 
+def ImageTests(): 
 
     cv.namedWindow("test",cv.WINDOW_NORMAL)
 
@@ -170,7 +142,19 @@ def Tests():
             print(f"An Error occured, Error:{e}")
         t.sleep(0.1)
 
+def BestMove(FEN):
 
+    if stockfish.is_fen_valid(FEN):
+        best_move = stockfish.get_best_move(FEN)
+        print(f"\n Best Move: {best_move}\n")
+        return best_move
+    else:
+        raise Exception("Error: Fen is not Valid")
+
+def Reset():
+    for row in range(8):
+        for column in range(8):
+            piece_map[int(row)][int(column)] = 0
 
 def FindFEN(castle="KQkq",turn="w", enPassant = "-"):
     try: 
@@ -205,12 +189,28 @@ def FindFEN(castle="KQkq",turn="w", enPassant = "-"):
         
 
         print(f"FEN = {FEN}")
+        return FEN
 
     except Exception as E:
         print(f"There was an error detecting FEN.    Error: {E}")
 
 def MovePiece():
     return
+
+def WaitForTurn(opponent_side):
+    piece_map_memory = piece_map
+
+    while True:
+        Reset()
+        board_crop = DetectBoard()
+        DetectPieces(board=board_crop)
+        if piece_map == piece_map_memory:      #Since the map is a list matrix size of 8x8, this check is more than enough.
+            t.sleep(1)
+            continue
+        
+        
+        #The piece that is moved will get checked here. If the piece is opponent's, then it will count as it is player's turn. 
+        
 
 def MenuLoop():
     print("Chess Bot is ready. Type 'help' for commands.")
@@ -234,23 +234,56 @@ def MenuLoop():
         elif "start" in command:
             print("You should type \"start new\" or \"start middle\"")
             continue
-        elif command == "reset":
-            for row in range(8):
-                for column in range(8):
-                    piece_map[int(row)][int(column)] = 0
-        elif command == "test":
-            FindFEN()
-        
-            
+
+        elif "reset" in command:
+            Reset()
+
+        elif "test" in command:
+            BotLoop("new")
+  
 def BotLoop(gameType):
     if gameType == "new":
-        FindFEN()
+        FEN = FindFEN()
+        player_side = "b" if piece_map[0][0] == "R" else "w"
+        opponent_side = "b" if player_side == "w" else "w"
+        whose_turn = 'w'
         while True:
-            return
+            if whose_turn == player_side:
+                try:
+                    MovePiece(BestMove(FEN(turn=player_side)))
+                    whose_turn = opponent_side
+                except Exception as e:
+                    print(f"Error in BotLoop, {gameType}      Error: {e}") 
+
+            elif whose_turn == opponent_side:
+                WaitForTurn(opponent_side)
+                whose_turn = player_side
+
     elif gameType == "puzzle":
         FindFEN()
         while True:
             return
+    elif gameType == "middle":
+
+        castling_rights = {"KQkq", "KQk", "KQq", "Kkq", "Kq", "Kk", "Qkq", "Qq", "Qk", "K", "Q","k","q","kq","-"}
+
+        
+
+        while True: 
+            print("Which Sides are suitable for castling? Type the sides in form of \"KQkq\". ")
+            isItCastled = input(">>>")
+            
+            if isItCastled in castling_rights:
+                print("Which side are you? (w/b)")
+                whichSide = input(">>> ").strip().lower()
+
+                firstFEN = FindFEN(castle=isItCastled, turn=whichSide)
+
+                if stockfish.is_fen_valid(firstFEN):
+                    pass                                                #Buradan devam edecek
+
+            else:
+                print("\nType the Castling correctly!\n")
 
 
 
@@ -262,46 +295,46 @@ if __name__ == "__main__":
     piece_model = YOLO(r"E:\Python_Projeler\ComputerVisionProjects\chess_bot\codes\models\piece_model.pt", verbose=False)
 
 
-    print("\n\n")                          
-    print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")         # Need a little show off, right?
-    t.sleep(0.05)
-    print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
-    t.sleep(0.05)
-    print("================")
-    t.sleep(0.05)
-    print("WELCOME TO THE")
-    t.sleep(0.05)
-    print("CHESS BOT")
-    t.sleep(0.05)
-    print("================")
-    t.sleep(0.05)
-    print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
-    t.sleep(0.05)
-    print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")
-    t.sleep(0.05)
-    print("\n\n")
+print("\n\n")                          
+print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")         # Need a little show off, right?
+t.sleep(0.05)
+print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
+t.sleep(0.05)
+print("================")
+t.sleep(0.05)
+print("WELCOME TO THE")
+t.sleep(0.05)
+print("CHESS BOT")
+t.sleep(0.05)
+print("================")
+t.sleep(0.05)
+print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
+t.sleep(0.05)
+print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")
+t.sleep(0.05)
+print("\n\n")
 
-    MenuLoop()
+MenuLoop()
 
-    print("\n\n")
-    print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")
-    t.sleep(0.05)
-    print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
-    t.sleep(0.05)
-    print("================")
-    t.sleep(0.05)
-    print("==  GOODBYE  ==")
-    t.sleep(0.05)
-    print("================")
-    t.sleep(0.05)
-    print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
-    t.sleep(0.05)
-    print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")
-    t.sleep(0.05)
-    print("\n\n")
+print("\n\n")
+print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")
+t.sleep(0.05)
+print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
+t.sleep(0.05)
+print("================")
+t.sleep(0.05)
+print("==  GOODBYE  ==")
+t.sleep(0.05)
+print("================")
+t.sleep(0.05)
+print("♙ ♙ ♙ ♙ ♙ ♙ ♙ ♙")
+t.sleep(0.05)
+print("♖ ♘ ♗ ♕ ♔ ♗ ♘ ♖")
+t.sleep(0.05)
+print("\n\n")
 
 
-            
+        
 
 
 
