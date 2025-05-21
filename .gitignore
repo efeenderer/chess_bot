@@ -1,4 +1,6 @@
 *.tmp
 *.log
 codes/stockfish
+codes/dataset_creation_adjustment_boards/Tests
+codes/dataset_creation_adjustment_pieces/CreationTests
 dataset/
